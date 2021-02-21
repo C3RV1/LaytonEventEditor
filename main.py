@@ -17,8 +17,8 @@ class EventEditor:
 
         screen_size = (1920, 1080)
 
-        self.gm = Engine.GameManager.GameManager(screen_size=screen_size, full_screen=False, log_fps=True,
-                                                 name="Event Editor", fps_limit=144)
+        self.gm = Engine.GameManager.GameManager(screen_size=screen_size, full_screen=False, log_fps=False,
+                                                 name="Event Editor")
         self.inp = Engine.Input.Input()
 
         self.event_player = EventPlayer(self.event_id)
