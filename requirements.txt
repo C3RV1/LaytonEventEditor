@@ -1,0 +1,10 @@
+cint~=1.0.0
+colorama~=0.4.4
+hexdump~=3.3
+ndspy~=3.0.0
+pygame~=2.0.1
+scipy~=1.6.1
+
+Pillow~=8.1.0
+numpy~=1.20.1
+wxPython~=4.1.1

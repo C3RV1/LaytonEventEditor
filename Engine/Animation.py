@@ -1,0 +1,60 @@
+import Engine.Sprite
+import Engine.GameManager
+
+
+class Animation(Engine.Sprite.Sprite):
+    def __init__(self, groups):
+        Engine.Sprite.Sprite.__init__(self, groups)
+        self._current_time = 0
+        self.gm = Engine.GameManager.GameManager()
+
+        self.current_tag = {}
+
+        self.anim_frame = 0
+        self.default_duration = 200
+        self.duration = self.default_duration
+
+    def update_animation(self, delta_time=None):
+        if delta_time is None:
+            delta_time = self.gm.delta_time
+        self._current_time += delta_time
+        self.update_anim_frame(update_frame=False)
+        while self._current_time >= self.duration:
+            self._current_time -= self.duration
+            self.anim_frame += 1
+            self.update_anim_frame(update_frame=False)
+        self.update_anim_frame(True)
+
+    def update_anim_frame(self, update_frame=False):
+        if self.current_tag is None:
+            return
+        if len(self.current_tag["frames"]) == 0:
+            return
+        self.anim_frame %= len(self.current_tag["frames"])
+        self.frame = self.current_tag["frames"][self.anim_frame]
+
+        if update_frame:
+            self._update_frame_info()
+
+        if "duration" in self.sprite_sheet_info["frames"][self.frame].keys():
+            self.duration = self.sprite_sheet_info["frames"][self.frame]["duration"]
+            if self.duration is not None:
+                self.duration /= 1000
+            else:
+                self.duration = self.default_duration
+
+    def set_tag(self, tag_name):
+        if self.current_tag:
+            if self.current_tag["name"] == tag_name:
+                return
+        for tag in self.sprite_sheet_info["meta"]["frameTags"]:
+            if tag["name"] == tag_name:
+                self.current_tag = tag
+                break
+        self.anim_frame = 0
+        self.update_anim_frame()
+        self.update_frame()
+
+    def set_tag_by_num(self, tag_num):
+        tag_name = self.sprite_sheet_info["meta"]["frameTags"][tag_num]["name"]
+        self.set_tag(tag_name)
