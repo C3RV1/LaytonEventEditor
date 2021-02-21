@@ -304,5 +304,4 @@ class EventPlayer(TwoScreenRenderer.TwoScreenRenderer):
         self.wait_timer = (time / ORIGINAL_FPS)
 
     def exit(self):
-        clear_extracted()
         super().exit()

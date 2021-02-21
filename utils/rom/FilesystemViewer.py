@@ -7,6 +7,7 @@ import Engine.Camera
 import Engine.Screen
 import Engine.Input
 import Engine.Sprite
+from Engine.Debug import Debug
 from Engine import Renderer
 import pygame as pg
 from utils.rom.rom_extract import load_bg, load_animation
@@ -49,10 +50,15 @@ class FilesystemViewer(Renderer.Renderer):
         self.camera.cam_alignment = [Engine.Sprite.Sprite.ALIGNMENT_RIGHT, Engine.Sprite.Sprite.ALIGNMENT_BOTTOM]
         self.blank_surface.fill(pg.Color(20, 20, 20))
 
+        self.preview_group = pg.sprite.LayeredDirty()
+        self.preview_camera = Engine.Camera.Camera()
+        self.preview_camera.display_port = pg.Rect(render_rect.x + 256 * 2, 1080 - 192 * 2, 256 * 2, 192 * 2)
+        self.preview_group.set_clip(self.preview_camera.display_port)
+
         self.preview_sprite = Engine.Sprite.Sprite([])
         self.preview_sprite.is_world = False
-        self.preview_sprite.world_rect.x = 256 * 2
-        self.preview_sprite.world_rect.y += 192
+        # self.preview_sprite.world_rect.x = 256 * 2
+        # self.preview_sprite.world_rect.y += 192
 
         self.current_content_buttons = []
         self.button_y = 0
@@ -65,17 +71,18 @@ class FilesystemViewer(Renderer.Renderer):
         self.open_folder("data_lt2/")
 
     def change_to_folder(self, folder_path):
-        print(f"Changing to folder: {folder_path}")
+        Debug.log(f"Changing to folder: {folder_path}", self)
         self.open_folder(folder_path + "/")
 
     def change_to_file(self, file_path):
-        print(f"Changing to file: {file_path}")
+        Debug.log(f"Changing to file: {file_path}", self)
         if file_path.endswith(".arc"):
             try:
                 load_bg(file_path, self.preview_sprite)
             except:
                 load_animation(file_path, self.preview_sprite)
-            self.preview_sprite.add(self.group)
+            self.preview_sprite.scale_by_factor([2, 2])
+            self.preview_sprite.add(self.preview_group)
 
     def create_new_folder(self, name, mapping_path):
         new_button = ButtonWithText(self.group)
@@ -128,6 +135,7 @@ class FilesystemViewer(Renderer.Renderer):
 
     def clear(self):
         self.group.clear(self.screen, self.blank_surface)
+        self.preview_group.clear(self.screen, self.blank_surface)
 
     def update(self):
         if self.inp.quit:
@@ -140,5 +148,7 @@ class FilesystemViewer(Renderer.Renderer):
 
     def draw(self):
         self.camera.draw(self.group)
+        self.preview_camera.draw(self.preview_group)
         dirty = self.group.draw(self.screen)
+        dirty.extend(self.preview_group.draw(self.screen))
         return dirty

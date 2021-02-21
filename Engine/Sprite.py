@@ -31,7 +31,9 @@ class Sprite(pg.sprite.DirtySprite):
         self.frame_count = None
         self.sprite_sheet_info = None
         self.source_rect_pre: pg.rect.Rect = None
+
         self.current_camera = None
+        self.cam_scale = 1
 
     def load(self, path, convert_alpha=True, from_cache=True):
         self.path = path
@@ -45,16 +47,23 @@ class Sprite(pg.sprite.DirtySprite):
                 self.image = self.image.convert()
             Sprite.images_global[path] = self.image
         self.scale_ = [1, 1]
+        self.is_sprite_sheet = False
+        self.frame = None
+        self.frame_count = None
+        self.sprite_sheet_info = None
+        self.source_rect_pre: pg.rect.Rect = None
         self.reset_world_rect()
 
     def reset_world_rect(self):
         self.world_rect.w = self.image.get_rect().w
         self.world_rect.h = self.image.get_rect().h
         self._original_size = [self.world_rect.w, self.world_rect.h]
+        self.cam_scale = 1
         self.flipped = [False, False]
 
     def load_sprite_sheet(self, path, convert_alpha=True):
         self.load(path + ".png", convert_alpha=convert_alpha)
+
         sprite_sheet_info_file = open(path + ".json", "r")
         self.sprite_sheet_info = json.loads(sprite_sheet_info_file.read())
         self.frame_count = len(self.sprite_sheet_info)
@@ -85,6 +94,8 @@ class Sprite(pg.sprite.DirtySprite):
         self.set_frame()
 
     def scale(self, size, conserve_aspect_ratio=False):
+        if self.world_rect.w == 0 or self.world_rect.h == 0:
+            return
         if conserve_aspect_ratio:
             scale_axis = 0
             if self.world_rect.w > self.world_rect.h:
@@ -107,10 +118,14 @@ class Sprite(pg.sprite.DirtySprite):
             self.world_rect.h = size[1]
 
         new_size = self._original_size.copy()
-        new_size[0] = int(round(new_size[0] * self.scale_[0]))
-        new_size[1] = int(round(new_size[1] * self.scale_[1]))
+        new_size[0] = int(round(new_size[0] * self.scale_[0] * self.cam_scale))
+        new_size[1] = int(round(new_size[1] * self.scale_[1] * self.cam_scale))
 
         self.image = pg.transform.scale(self.image, new_size)
+        self.set_color_key(self.color_key)
+
+        if self.is_sprite_sheet:
+            self._update_frame_info()
 
         self.dirty = 1
 
@@ -146,8 +161,7 @@ class Sprite(pg.sprite.DirtySprite):
                 for frame in self.sprite_sheet_info["frames"]:
                     frame["frame"]["y"] = self._original_size[0] - frame["frame"]["y"] - frame["frame"]["h"]
             self.update_frame()
-        if self.color_key is not None:
-            self.image.set_colorkey(self.color_key)
+        self.set_color_key(self.color_key)
 
     def set_color_key(self, color_key: pg.Color):
         self.color_key = color_key

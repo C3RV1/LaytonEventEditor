@@ -99,4 +99,3 @@ def load_effect(path: str) -> pg.mixer.Sound:
 
 def clear_extracted():
     shutil.rmtree(EXPORT_PATH)
-    os.mkdir(EXPORT_PATH)

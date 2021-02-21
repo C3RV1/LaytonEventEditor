@@ -18,24 +18,28 @@ class Animation(Engine.Sprite.Sprite):
         if delta_time is None:
             delta_time = self.gm.delta_time
         self._current_time += delta_time
-        self.update_anim_frame(update_frame=False)
+        self.update_anim_duration()
         while self._current_time >= self.duration:
             self._current_time -= self.duration
             self.anim_frame += 1
-            self.update_anim_frame(update_frame=False)
-        self.update_anim_frame(True)
+            self.update_anim_duration()
+        self.update_anim_frame()
 
-    def update_anim_frame(self, update_frame=False):
+    def update_anim_frame(self):
         if self.current_tag is None:
             return
         if len(self.current_tag["frames"]) == 0:
             return
         self.anim_frame %= len(self.current_tag["frames"])
+        pre_frame = self.frame
         self.frame = self.current_tag["frames"][self.anim_frame]
 
-        if update_frame:
+        if pre_frame != self.frame:
             self._update_frame_info()
 
+        self.update_anim_duration()
+
+    def update_anim_duration(self):
         if "duration" in self.sprite_sheet_info["frames"][self.frame].keys():
             self.duration = self.sprite_sheet_info["frames"][self.frame]["duration"]
             if self.duration is not None:

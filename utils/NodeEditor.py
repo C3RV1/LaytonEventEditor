@@ -28,19 +28,22 @@ class NodeEditor(Renderer.Renderer):
         x = 0
         x_s = []
         y = 0
+        x_space = 5
+        y_space = 70
         self.nodes_data = nodes
         for i in range(len(nodes)):
             new_node = Engine.UI.DraggableButton.DraggableButton(self.group)
             new_node.press_command = lambda nid=i: self.select_node_(nid)
             new_node.load("data_permanent/sprites/" + node_images[i])
-            x += new_node.world_rect.w // 2 + 5
+            new_node.scale_by_factor([2, 2])
+            x += new_node.world_rect.w // 2 + x_space
             new_node.world_rect.x = x
             new_node.world_rect.y = y
-            x += new_node.world_rect.w // 2 + 5
+            x += new_node.world_rect.w // 2 + x_space
             if i % 5 == 4:
                 x_s.append(x)
                 x = 0
-                y += 50
+                y += y_space
             new_node.set_frame(0)
             self.nodes.append(new_node)
         x_s.append(x)

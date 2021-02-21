@@ -3,6 +3,8 @@ import Engine.UI.FontMap
 import pygame as pg
 import os
 
+import Engine.Screen
+
 
 class Text(Engine.Sprite.Sprite):
     FONTS = {}
@@ -30,7 +32,6 @@ class Text(Engine.Sprite.Sprite):
             if Engine.UI.FontMap.FontMap.exists_font_map(font_path):
                 self.font = Engine.UI.FontMap.FontMap(font_path, size[0], size[1], letter_spacing=letter_spacing)
             else:
-                print("Here")
                 self.font = pg.font.Font(None, 16)
         self.set_text("")
 
@@ -46,9 +47,10 @@ class Text(Engine.Sprite.Sprite):
         elif isinstance(self.font, Engine.UI.FontMap.FontMap):
             self.font: Engine.UI.FontMap.FontMap
             self.image = self.font.render(text, bg_color=bg_color)
-        self.image.set_colorkey(mask_color)
         rect_wh = self.image.get_rect()
-        self.world_rect[2] = rect_wh.w
-        self.world_rect[3] = rect_wh.h
+        self.world_rect.w = rect_wh.w
+        self.world_rect.h = rect_wh.h
+        self.reset_world_rect()
+        self.set_color_key(mask_color)
         self.dirty = 1
 

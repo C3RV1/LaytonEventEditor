@@ -15,10 +15,12 @@ class TwoScreenRenderer(Renderer.Renderer):
         self.bottom_screen_group = pg.sprite.LayeredDirty()
 
         self.top_screen_camera = Engine.Camera.Camera()
-        self.top_screen_camera.display_port = pg.rect.Rect(0, 0, 256, 192)
+        self.top_screen_camera.display_port = pg.rect.Rect(0, 0, 256 * 2, 192 * 2)
+        self.top_screen_camera.scale = 2
 
         self.bottom_screen_camera = Engine.Camera.Camera()
-        self.bottom_screen_camera.display_port = pg.rect.Rect(0, 192, 256, 192)
+        self.bottom_screen_camera.display_port = pg.rect.Rect(0, 192 * 2, 256 * 2, 192 * 2)
+        self.bottom_screen_camera.scale = 2
 
         self.top_screen_group.set_clip(self.top_screen_camera.display_port)
         self.bottom_screen_group.set_clip(self.bottom_screen_camera.display_port)

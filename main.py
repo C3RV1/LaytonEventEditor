@@ -17,13 +17,13 @@ class EventEditor:
 
         screen_size = (1920, 1080)
 
-        self.gm = Engine.GameManager.GameManager(screen_size=screen_size, full_screen=False, log_fps=False,
-                                                 name="Event Editor")
+        self.gm = Engine.GameManager.GameManager(screen_size=screen_size, full_screen=False, log_fps=True,
+                                                 name="Event Editor", fps_limit=144)
         self.inp = Engine.Input.Input()
 
         self.event_player = EventPlayer(self.event_id)
-        self.node_editor = NodeEditor(pg.Rect(256, 0, screen_size[0] - 256, screen_size[1] - 192 * 2))
-        self.filesystem = FilesystemViewer(pg.Rect(0, screen_size[1] - 192 * 2, 256*3, 192*2))
+        self.node_editor = NodeEditor(pg.Rect(256 * 2, 0, screen_size[0] - 256 * 2, 1080 - 192 * 2))
+        self.filesystem = FilesystemViewer(pg.Rect(0, 192*4, 256*3, screen_size[1] - 192 * 4))
 
     def load(self):
         self.event_player.reset()
@@ -64,7 +64,7 @@ class EventEditor:
         for command in gds.commands:  # type: LaytonLib.gds.GDSCommand
             if command.command not in transform_list.keys():
                 commands_to_del.append(command)
-                Debug.log_warning(f"Removed command {command.command}. This event shouldn't be saved.", self)
+                Debug.log_warning(f"Removed command {hex(command.command)}. This event shouldn't be saved.", self)
                 continue
             result.append(transform_list[command.command])
         for command in commands_to_del:
@@ -106,7 +106,7 @@ def test_event(event_id):
 
 
 if __name__ == '__main__':
-    clear_extracted()
     RomSingleton.RomSingleton("test_rom.nds")
     test_event(14230)
+    clear_extracted()
     # test_event(14230)
