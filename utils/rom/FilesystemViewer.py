@@ -37,13 +37,13 @@ class ButtonWithText(Engine.UI.UIElement.UIElement, Engine.UI.Text.Text):
 
 
 class FilesystemViewer(Renderer.Renderer):
-    def __init__(self):
+    def __init__(self, render_rect):
         super(FilesystemViewer, self).__init__()
         self.rom = RomSingleton.RomSingleton().rom
 
         self.group = pg.sprite.LayeredDirty()
         self.camera = Engine.Camera.Camera()
-        self.camera.display_port = pg.Rect(0, 192*2, 256*3, 192*2)
+        self.camera.display_port = render_rect
         self.group.set_clip(self.camera.display_port)
 
         self.camera.cam_alignment = [Engine.Sprite.Sprite.ALIGNMENT_RIGHT, Engine.Sprite.Sprite.ALIGNMENT_BOTTOM]

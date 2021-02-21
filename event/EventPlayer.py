@@ -48,9 +48,12 @@ class EventPlayer(TwoScreenRenderer.TwoScreenRenderer):
         self.characters = {}
         self.char_order = []
 
+        self.current_gds_command = 0
+        self.wait_timer = 0
+
         self.dialogue: EventDialogue = None
 
-    def reset(self):
+    def reset(self, skip_fade_in=False):
         self.dialogue = EventDialogue([])
         self.dialogue.layer = 100
         self.dialogue.post_interact = self.post_dialogue
@@ -80,7 +83,7 @@ class EventPlayer(TwoScreenRenderer.TwoScreenRenderer):
         self.top_screen_group.add([self.top_fader, self.top_bg])
         self.bottom_screen_group.add([self.dialogue, self.bottom_bg, self.bottom_fader, self.back_translucent])
 
-        self.load()
+        self.load(skip_fade_in)
 
     def hide_dialogue(self):
         for text in self.dialogue.inner_text:
@@ -94,21 +97,22 @@ class EventPlayer(TwoScreenRenderer.TwoScreenRenderer):
             text.add(self.bottom_screen_group)
         self.dialogue.char_name.add(self.bottom_screen_group)
         self.dialogue.add(self.bottom_screen_group)
-        print(self.dialogue.groups())
         self.bottom_screen_camera.draw(self.bottom_screen_group, dirty_all=True)
 
-    def start_dialogue(self, command: LaytonLib.gds.GDSCommand):
+    def start_dialogue(self, command: LaytonLib.gds.GDSCommand, exec_dialogue=True):
         dialogue_id = command.params[0]
         dialogue_gds = self.event_data.get_text(dialogue_id)
-        self.show_dialogue()
-        self.dialogue.reset()
-        self.dialogue.text_left_to_do = dialogue_gds.params[4]
-        Debug.log(f"Dialogue: {self.dialogue.text_left_to_do}", self)
-        self.dialogue.replace_substitutions()
+        Debug.log(f"Dialogue: {dialogue_gds.params[4]}", self)
+        if exec_dialogue:
+            self.show_dialogue()
+            self.dialogue.reset()
+            self.dialogue.text_left_to_do = dialogue_gds.params[4]
+            self.dialogue.replace_substitutions()
 
         if dialogue_gds.params[0] != 0:
             self.dialogue.character_talking = self.characters[dialogue_gds.params[0]]
-            self.dialogue.init_char_name()
+            if exec_dialogue:
+                self.dialogue.init_char_name()
 
             if dialogue_gds.params[1] != "NONE":
                 self.dialogue.character_talking.set_tag(dialogue_gds.params[1])
@@ -122,15 +126,15 @@ class EventPlayer(TwoScreenRenderer.TwoScreenRenderer):
         self.hide_dialogue()
         self.run_gds_command()
 
-    def load(self):
+    def load(self, skip_fade_in=False):
         load_animation(f"data_lt2/ani/event/twindow.arc", self.dialogue)
         self.dialogue.draw_alignment[1] = self.dialogue.ALIGNMENT_BOTTOM
         self.dialogue.world_rect.y += 192 // 2
         self.dialogue.init_position()
         self.hide_dialogue()
 
-        self.top_fader.fade_in(False)
-        self.bottom_fader.fade_in(False)
+        self.top_fader.fade_in(False, skip_fade_in)
+        self.bottom_fader.fade_in(False, skip_fade_in)
 
         load_bg(f"data_lt2/bg/event/sub{self.event_data.map_top_id}.arc", self.top_bg)
         load_bg(f"data_lt2/bg/map/main{self.event_data.map_bottom_id}.arc", self.bottom_bg)
@@ -181,26 +185,40 @@ class EventPlayer(TwoScreenRenderer.TwoScreenRenderer):
 
         Engine.UI.UIManager.UIManager.update([self.dialogue])
 
-    def run_gds_command(self):
+    def run_gds_command(self, run_until_command=-1):
+        auto_progress = run_until_command == -1
+        if not auto_progress:
+            Debug.log_debug(f"Event running until command {run_until_command}", self)
+            self.top_fader.max_fade = 180
+            self.bottom_fader.max_fade = 180
+        else:
+            self.top_fader.max_fade = 255
+            self.bottom_fader.max_fade = 255
+
         while True:
+            should_return = False
+
             if self.current_gds_command >= len(self.event_data.event_gds.commands):
                 break
             next_command: LaytonLib.gds.GDSCommand = self.event_data.event_gds.commands[self.current_gds_command]
             self.current_gds_command += 1
+
+            run_until_command_completed = (self.current_gds_command > run_until_command)
+
             if next_command.command == 0x2:
                 Debug.log("Fading in both screens", self)
-                self.top_fader.fade_in(True)
+                self.top_fader.fade_in(auto_progress, not run_until_command_completed)
                 self.bottom_fader.fade_in(False)
-                return
+                should_return = True
             elif next_command.command == 0x3:
                 Debug.log("Fading out both screens", self)
-                self.top_fader.fade_out(True)
+                self.top_fader.fade_out(auto_progress, not run_until_command_completed)
                 self.bottom_fader.fade_out(False)
-                return
+                should_return = True
             elif next_command.command == 0x4:
                 Debug.log(f"Starting dialogue {next_command.params[0]}", self)
-                self.start_dialogue(next_command)
-                return
+                self.start_dialogue(next_command, exec_dialogue=run_until_command_completed)
+                should_return = True
             elif next_command.command == 0x21:
                 path = ".".join(next_command.params[0].split(".")[:-1]) + ".arc"  # Change extension
                 Debug.log(f"Loading BG on bottom {path}", self)
@@ -235,16 +253,17 @@ class EventPlayer(TwoScreenRenderer.TwoScreenRenderer):
                 char.update_()
             elif next_command.command == 0x32:
                 Debug.log(f"Fading bottom in", self)
-                self.bottom_fader.fade_in(True)
-                return
+                self.bottom_fader.fade_in(auto_progress, not run_until_command_completed)
+                should_return = True
             elif next_command.command == 0x33:
                 Debug.log("Fading bottom out", self)
-                self.bottom_fader.fade_out(True)
-                return
+                self.bottom_fader.fade_out(auto_progress, not run_until_command_completed)
+                should_return = True
             elif next_command.command == 0x31:
-                self.wait(next_command.params[0])
-                Debug.log(f"Waiting {self.wait_timer}", self)
-                return
+                if run_until_command_completed:
+                    self.wait(next_command.params[0])
+                    Debug.log(f"Waiting {self.wait_timer}", self)
+                should_return = True
             elif next_command.command == 0x37:
                 Debug.log(f"Setting BG opacity to {next_command.params[3]}", self)
                 self.back_translucent.image.set_alpha(next_command.params[3])
@@ -254,9 +273,10 @@ class EventPlayer(TwoScreenRenderer.TwoScreenRenderer):
                 self.characters[next_command.params[0]].set_tag(next_command.params[1])
             elif next_command.command == 0x5d:
                 Debug.log(f"Playing SAD SFX {next_command.params[0]}", self)
-                sfx_path = f"data_lt2/stream/ST_{str(next_command.params[0]).zfill(3)}.SAD"
-                sfx = load_effect(sfx_path)
-                sfx.play()
+                if run_until_command_completed:
+                    sfx_path = f"data_lt2/stream/ST_{str(next_command.params[0]).zfill(3)}.SAD"
+                    sfx = load_effect(sfx_path)
+                    sfx.play()
             elif next_command.command == 0x5e:
                 Debug.log(f"SFX Sequenced {next_command.params}", self)
             elif next_command.command == 0x6a:
@@ -264,16 +284,20 @@ class EventPlayer(TwoScreenRenderer.TwoScreenRenderer):
                 self.bottom_bg.shake()
             elif next_command.command == 0x87:
                 Debug.log(f"Fading out top in {next_command.params[0]} frames", self)
-                self.top_fader.fade_out(True)
+                self.top_fader.fade_out(run_until_command == -1)
                 self.top_fader.current_time = next_command.params[0] / ORIGINAL_FPS
-                return
+                should_return = True
             elif next_command.command == 0x88:
                 Debug.log(f"Fading in top in {next_command.params[0]} frames", self)
-                self.top_fader.fade_in(True)
+                self.top_fader.fade_in(run_until_command == -1)
                 self.top_fader.current_time = next_command.params[0] / ORIGINAL_FPS
-                return
+                should_return = True
             else:
                 Debug.log(f"Unknown dialogue {next_command}", self)
+            if run_until_command_completed and not auto_progress:
+                return
+            if should_return and auto_progress:
+                return
         Debug.log("Event execution finished", self)
 
     def wait(self, time):

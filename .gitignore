@@ -5,3 +5,7 @@ venv/
 data_permanent/fonts/*
 *.ase
 *.nds
+*.json
+*.png
+*.SAD
+*.wav

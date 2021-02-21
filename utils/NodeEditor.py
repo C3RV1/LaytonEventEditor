@@ -10,19 +10,19 @@ import Engine.Sprite
 
 
 class NodeEditor(Renderer.Renderer):
-    def __init__(self):
+    def __init__(self, render_rect):
         super(NodeEditor, self).__init__()
 
         self.group = pg.sprite.LayeredDirty()
         self.cam = Engine.UI.DraggableCamera.DraggableCamera()
-        self.cam.display_port = pg.Rect(256, 0, 1280 - 256, 192*2)
+        self.cam.display_port = render_rect
         self.group.set_clip(self.cam.display_port)
 
         self.nodes = []
         self.nodes_data = []
 
         self.repaint_rect = []
-        self.select_node = lambda node_info: None
+        self.select_node = lambda node_id, node_info: None
 
     def generate_nodes(self, nodes, node_images):
         x = 0
@@ -33,20 +33,22 @@ class NodeEditor(Renderer.Renderer):
             new_node = Engine.UI.DraggableButton.DraggableButton(self.group)
             new_node.press_command = lambda nid=i: self.select_node_(nid)
             new_node.load("data_permanent/sprites/" + node_images[i])
+            x += new_node.world_rect.w // 2 + 5
             new_node.world_rect.x = x
             new_node.world_rect.y = y
-            x += new_node.world_rect.w + 10
+            x += new_node.world_rect.w // 2 + 5
             if i % 5 == 4:
                 x_s.append(x)
                 x = 0
                 y += 50
             new_node.set_frame(0)
             self.nodes.append(new_node)
+        x_s.append(x)
         self.cam.position[0] -= max(x_s) / 2 - 40
         self.cam.position[1] -= y / 2
 
     def select_node_(self, node_id):
-        self.select_node(self.nodes_data[node_id])
+        self.select_node(node_id, self.nodes_data[node_id])
 
     def clear(self):
         self.group.clear(self.screen, self.blank_surface)

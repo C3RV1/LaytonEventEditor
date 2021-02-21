@@ -30,7 +30,8 @@ class Text(Engine.Sprite.Sprite):
             if Engine.UI.FontMap.FontMap.exists_font_map(font_path):
                 self.font = Engine.UI.FontMap.FontMap(font_path, size[0], size[1], letter_spacing=letter_spacing)
             else:
-                self.font = pg.font.Font(font_path, size[1])
+                print("Here")
+                self.font = pg.font.Font(None, 16)
         self.set_text("")
 
     def set_text(self, text, color=(255, 255, 255), antialias=False, bg_color=(0, 0, 0), mask_color=(0, 0, 0)):
