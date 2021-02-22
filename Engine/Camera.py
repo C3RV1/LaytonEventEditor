@@ -101,10 +101,10 @@ class Camera:
             line_x1, line_y1 = self.world_to_screen(line_x1, line_y1)
             line_x2, line_y2 = self.world_to_screen(line_x2, line_y2)
 
-        x1_check = line_x1 < self.display_port.x - 1 or line_x1 > self.display_port.x - 1 + self.display_port.w - 1
-        y1_check = line_y1 < self.display_port.y - 1 or line_y1 > self.display_port.y - 1 + self.display_port.h - 1
-        x2_check = line_x2 < self.display_port.x - 1 or line_x2 > self.display_port.x - 1 + self.display_port.w - 1
-        y2_check = line_y2 < self.display_port.y - 1 or line_y2 > self.display_port.y - 1 + self.display_port.h - 1
+        x1_check = line_x1 < self.display_port.x + 1 or line_x1 > self.display_port.x - 1 + self.display_port.w - 1
+        y1_check = line_y1 < self.display_port.y + 1 or line_y1 > self.display_port.y - 1 + self.display_port.h - 1
+        x2_check = line_x2 < self.display_port.x + 1 or line_x2 > self.display_port.x - 1 + self.display_port.w - 1
+        y2_check = line_y2 < self.display_port.y + 1 or line_y2 > self.display_port.y - 1 + self.display_port.h - 1
 
         if x1_check or y1_check or x2_check or y2_check:
             return pg.Rect(0, 0, 0, 0)

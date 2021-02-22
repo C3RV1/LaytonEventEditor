@@ -10,8 +10,8 @@ def clamp_nibble(n: int):
 
 class Helper:
     @staticmethod
-    def merge_channels(left: bytearray, right: bytearray, loop_sample: int = 0) -> bytearray:
-        result = bytearray()
+    def merge_channels(left: list, right: list, loop_sample: int = 0) -> list:
+        result = []
         for i in range(loop_sample, len(left), 2):
             result.append(left[i])
             if i + 1 < len(left):

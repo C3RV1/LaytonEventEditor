@@ -82,6 +82,7 @@ class SoundBase:
 
     def initialize(self):
         encoded = self.read_file()
+        return
 
         self._pcm16 = self.decode(encoded, False)
         if self._loop_enabled and not self._ignore_loop:

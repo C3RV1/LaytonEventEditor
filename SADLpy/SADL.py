@@ -7,7 +7,7 @@ from .Compression.IMA_ADPCM import ImaAdpcm
 from .Compression.Procyon import Procyon
 from .Helper import Helper
 from cint.cint import I32, I8
-import sys
+import math
 
 
 class Coding:
@@ -35,6 +35,18 @@ class SADL(SoundBase):
         self.sadl = SADLStruct()
         self._ignore_loop = True
         self._print_info = print_info
+        start_offset = I32(0x100)
+
+        self.buffer = []
+        self.hist = []
+        self.length = []
+        self.offset = []
+        self._sample_extend = 0
+        self._current_extend = 0
+
+        self.samples_written = I32(0)
+
+        self._force_channels = 1
 
     def read_file(self) -> bytearray:
         br = BinaryReader(open(self._sound_file, "rb"))
@@ -86,11 +98,20 @@ class SADL(SoundBase):
 
         br.close()
 
+        for i in range(0, self._channels):
+            self.offset.append(start_offset + self._block_size * i)
+            self.length.append(I32(0))
+            self.hist.append([I32(0), I32(0)])
+
+        self.encoded = buffer.copy()
+        self._force_channels = self._channels
+
         return buffer
 
     def decode(self, encoded: bytearray, loop_enabled: bool) -> bytearray:
         if self.sadl.coding == Coding.NDS_PROCYON:
             return self.decode_procyon(encoded)
+        raise NotImplementedError()
 
         start_offset = I32(0x100)
         pos = 0
@@ -131,44 +152,47 @@ class SADL(SoundBase):
 
         return data
 
-    def decode_procyon(self, encoded: bytearray) -> bytearray:
-        start_offset = I32(0x100)
-
+    def decode_procyon(self, sample_steps=-1) -> list:
         buffer = []
-        hist = []
-        length = []
-        offset = []
 
         for i in range(0, self._channels):
-            offset.append(start_offset + self._block_size * i)
-            buffer.append(bytearray())
-            length.append(I32(0))
-            hist.append([I32(0), I32(0)])
+            buffer.append([])
 
-        samples_written = I32(0)
+        if sample_steps != -1:
+            sample_steps = min(self.samples_written + (sample_steps * 30), self.number_samples)
+        else:
+            sample_steps = self.number_samples
 
-        while samples_written < self.number_samples:
+        while self.samples_written < sample_steps:
             samples_to_do = I32(30)
-            if samples_written + samples_to_do > self.number_samples:
-                samples_to_do = self._total_samples - samples_written
+            if self.samples_written + samples_to_do > sample_steps:
+                samples_to_do = sample_steps - self.samples_written
 
             for chan in range(0, self._channels):
-                temp = Procyon.decode(encoded, offset[chan],
-                                      samples_to_do, hist[chan])
+                temp = Procyon.decode(self.encoded, self.offset[chan],
+                                      samples_to_do, self.hist[chan])
 
                 buffer[chan].extend(temp)
-                length[chan] += len(temp)
+                self.length[chan] += len(temp)
 
-                offset[chan] += int(self._block_size * self._channels)
+                self.offset[chan] += int(self._block_size * self._channels)
 
-            samples_written += samples_to_do
+            self.samples_written += samples_to_do
 
-        if self._channels == 1:
-            mus = buffer[0]
-        else:
-            mus = Helper.merge_channels(buffer[0], buffer[1])
+        # Duplicate samples to match sample rate (no interpolation, still good)
+        buffer_parsed = []
+        for buf_off in range(len(buffer[0])):
+            this_buffer = [0] * self._force_channels
+            for chan in range(self._force_channels):
+                buffer_chan = chan % len(buffer)
+                this_buffer[chan] = buffer[buffer_chan][buf_off]
+                while self._current_extend >= 0 and chan == 1:
+                    buffer_parsed.append(this_buffer)
+                    self._current_extend -= 1
+                if chan == 1:
+                    self._current_extend += self._sample_extend
 
-        return mus
+        return buffer_parsed
 
     def _encode(self, data: bytearray) -> bytearray:
         # TODO: Implement stereo
@@ -213,7 +237,7 @@ class SADL(SoundBase):
 
         # .. update channels
         bw.seek(0x32)
-        bw.write_byte(self.channels)
+        bw.write_byte(self._channels)
 
         # ..update encoding and sample rate values
         bw.seek(0x33)
@@ -240,7 +264,7 @@ class SADL(SoundBase):
 
     def _encode_ima_adpcm(self, data: bytearray) -> bytearray:
         # TODO: Implement stereo
-        if self.channels != 1:
+        if self._channels != 1:
             raise NotImplementedError("Only mono implemented")
 
         # TODO: Implement sample rate converter
@@ -269,7 +293,7 @@ class SADL(SoundBase):
         buffer = bytearray()
         offset = []
         hist = []
-        for i in range(self.channels):
+        for i in range(self._channels):
             offset.append(interleave * i)
             hist.append([I32(0), I32(0)])
 
@@ -281,13 +305,42 @@ class SADL(SoundBase):
             if samples_written + samples_to_do > self.number_samples:
                 samples_to_do = self.number_samples - samples_written - 60
 
-            for chan in range(self.channels):
+            for chan in range(self._channels):
                 temp = Procyon.encode(data, offset[chan], hist[chan], samples_to_do=samples_to_do)
 
-                offset[chan] += interleave * self.channels
+                offset[chan] += interleave * self._channels
 
                 buffer.extend(temp)
 
             samples_written += samples_to_do
 
         return buffer
+
+    @property
+    def sample_extend(self):
+        return self._sample_extend
+
+    @sample_extend.setter
+    def sample_extend(self, value):
+        self._sample_extend = value
+        self._current_extend = self._sample_extend
+
+    @property
+    def sample_rate(self):
+        return self._sample_rate * self.sample_extend
+
+    @property
+    def alloc_size(self):
+        return int(math.ceil(self.number_samples * self.sample_extend))
+
+    @sample_rate.setter
+    def sample_rate(self, value):
+        self.sample_extend = value / self._sample_rate
+
+    @property
+    def channels(self):
+        return self._force_channels
+
+    @channels.setter
+    def channels(self, value):
+        self._force_channels = value

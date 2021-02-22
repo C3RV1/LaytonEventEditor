@@ -54,6 +54,7 @@ class EventEditor:
             0x31: "wait.png",
             0x37: "bg_alpha.png",
             0x3f: "chr_anim.png",
+            0x5c: "voice.png",
             0x5d: "sad_sfx.png",
             0x6a: "bg_shake.png",
             0x87: "fade_out_top_timed.png",
@@ -64,10 +65,10 @@ class EventEditor:
         for command in gds.commands:  # type: LaytonLib.gds.GDSCommand
             if command.command not in transform_list.keys():
                 commands_to_del.append(command)
-                Debug.log_warning(f"Removed command {hex(command.command)}. This event shouldn't be saved.", self)
                 continue
             result.append(transform_list[command.command])
         for command in commands_to_del:
+            Debug.log_warning(f"Removed command {command}. This event shouldn't be saved.", self)
             gds.commands.remove(command)
         return result
 
@@ -107,6 +108,6 @@ def test_event(event_id):
 
 if __name__ == '__main__':
     RomSingleton.RomSingleton("test_rom.nds")
-    test_event(14230)
-    clear_extracted()
+    test_event(10030)
     # test_event(14230)
+    clear_extracted()

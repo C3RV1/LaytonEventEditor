@@ -12,6 +12,9 @@ import pygame as pg
 from event.EventCharacter import EventCharacter
 from event.EventDialogue import EventDialogue
 from utils.rom.rom_extract import load_animation, load_bg, clear_extracted, ORIGINAL_FPS, load_effect
+import utils.SADLStreamPlayer
+
+
 
 
 class EventPlayer(TwoScreenRenderer.TwoScreenRenderer):
@@ -53,8 +56,14 @@ class EventPlayer(TwoScreenRenderer.TwoScreenRenderer):
 
         self.dialogue: EventDialogue = None
 
+        self.sound_player = utils.SADLStreamPlayer.SoundPlayer()
+        self.voice_player = utils.SADLStreamPlayer.SoundPlayer()
+        self.next_voice = -1
+
     def reset(self, skip_fade_in=False):
-        self.dialogue = EventDialogue([])
+        self.sound_player.stop()
+        self.voice_player.stop()
+        self.dialogue = EventDialogue([], self.voice_player)
         self.dialogue.layer = 100
         self.dialogue.post_interact = self.post_dialogue
 
@@ -86,6 +95,7 @@ class EventPlayer(TwoScreenRenderer.TwoScreenRenderer):
         self.load(skip_fade_in)
 
     def hide_dialogue(self):
+        self.next_voice = -1
         for text in self.dialogue.inner_text:
             text.kill()
         self.dialogue.char_name.kill()
@@ -104,10 +114,13 @@ class EventPlayer(TwoScreenRenderer.TwoScreenRenderer):
         dialogue_gds = self.event_data.get_text(dialogue_id)
         Debug.log(f"Dialogue: {dialogue_gds.params[4]}", self)
         if exec_dialogue:
+            self.dialogue.reset_all()
             self.show_dialogue()
-            self.dialogue.reset()
             self.dialogue.text_left_to_do = dialogue_gds.params[4]
             self.dialogue.replace_substitutions()
+            self.dialogue.voice_line = self.next_voice
+        else:
+            self.hide_dialogue()
 
         if dialogue_gds.params[0] != 0:
             self.dialogue.character_talking = self.characters[dialogue_gds.params[0]]
@@ -178,6 +191,9 @@ class EventPlayer(TwoScreenRenderer.TwoScreenRenderer):
         self.bottom_fader.update_()
         self.bottom_bg.update_()
 
+        self.sound_player.update_()
+        self.voice_player.update_()
+
         if self.wait_timer > 0:
             self.wait_timer -= self.gm.delta_time
             if self.wait_timer <= 0:
@@ -208,12 +224,12 @@ class EventPlayer(TwoScreenRenderer.TwoScreenRenderer):
             if next_command.command == 0x2:
                 Debug.log("Fading in both screens", self)
                 self.top_fader.fade_in(auto_progress, not run_until_command_completed)
-                self.bottom_fader.fade_in(False)
+                self.bottom_fader.fade_in(False, not run_until_command_completed)
                 should_return = True
             elif next_command.command == 0x3:
                 Debug.log("Fading out both screens", self)
                 self.top_fader.fade_out(auto_progress, not run_until_command_completed)
-                self.bottom_fader.fade_out(False)
+                self.bottom_fader.fade_out(False, not run_until_command_completed)
                 should_return = True
             elif next_command.command == 0x4:
                 Debug.log(f"Starting dialogue {next_command.params[0]}", self)
@@ -271,25 +287,30 @@ class EventPlayer(TwoScreenRenderer.TwoScreenRenderer):
             elif next_command.command == 0x3f:
                 Debug.log(f"Setting character {next_command.params[0]} animation to {next_command.params[1]}", self)
                 self.characters[next_command.params[0]].set_tag(next_command.params[1])
+                self.characters[next_command.params[0]].update_()
+            elif next_command.command == 0x5c:
+                Debug.log(f"Playing voice line {next_command.params[0]}", self)
+                self.next_voice = next_command.params[0]
             elif next_command.command == 0x5d:
                 Debug.log(f"Playing SAD SFX {next_command.params[0]}", self)
                 if run_until_command_completed:
                     sfx_path = f"data_lt2/stream/ST_{str(next_command.params[0]).zfill(3)}.SAD"
                     sfx = load_effect(sfx_path)
-                    sfx.play()
+                    self.sound_player.start_sound(sfx)
             elif next_command.command == 0x5e:
                 Debug.log(f"SFX Sequenced {next_command.params}", self)
             elif next_command.command == 0x6a:
                 Debug.log(f"Shaking screen bottom", self)
-                self.bottom_bg.shake()
+                if run_until_command_completed:
+                    self.bottom_bg.shake()
             elif next_command.command == 0x87:
                 Debug.log(f"Fading out top in {next_command.params[0]} frames", self)
-                self.top_fader.fade_out(run_until_command == -1)
+                self.top_fader.fade_out(run_until_command == -1, not run_until_command_completed)
                 self.top_fader.current_time = next_command.params[0] / ORIGINAL_FPS
                 should_return = True
             elif next_command.command == 0x88:
                 Debug.log(f"Fading in top in {next_command.params[0]} frames", self)
-                self.top_fader.fade_in(run_until_command == -1)
+                self.top_fader.fade_in(run_until_command == -1, not run_until_command_completed)
                 self.top_fader.current_time = next_command.params[0] / ORIGINAL_FPS
                 should_return = True
             else:

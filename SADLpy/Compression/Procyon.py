@@ -43,7 +43,7 @@ class Procyon:
 
     @staticmethod
     def decode(encoded: bytearray, offset: int, samples_to_do: int, hist: list) -> bytearray:
-        buffer = bytearray()
+        buffer = []
 
         pos = offset + 15
         header = I32(encoded[pos])
@@ -78,7 +78,8 @@ class Procyon:
             # clamp = I16(Helper.clamp16((sample + 32) >> 6) >> 6 << 6)
             clamp = I16(Helper.clamp16((sample + 32) >> 6) >> 6 << 6)
 
-            buffer.extend(BitConverter.get_bytes_short(clamp))
+            # buffer.append(BitConverter.get_bytes_short(clamp))
+            buffer.append(int(clamp))
 
         return buffer
 

@@ -81,20 +81,19 @@ def load_bg(path: str, sprite: Engine.Sprite.Sprite):
     sprite.dirty = 1
 
 
-def load_effect(path: str) -> pg.mixer.Sound:
+def load_effect(path: str) -> SADLpy.SADL.SADL:
     rom = RomSingleton.RomSingleton().rom
+    path = path.replace("?", "en")
     sad_export_path = EXPORT_PATH + "/" + path
-    sad_export_path = sad_export_path.replace("?", "en")
-    if not os.path.isfile(sad_export_path + ".wav"):
+    if not os.path.isfile(sad_export_path):
         os.makedirs(os.path.dirname(sad_export_path), exist_ok=True)
+        print(path)
         sound_data = rom.files[rom.filenames.idOf(path)]
         with open(sad_export_path, "wb") as sad_export_file:
             sad_export_file.write(sound_data)
-        sadl = SADLpy.SADL.SADL(sad_export_path, 0, True)
-        sadl.initialize()
-        sadl.save_wav(sad_export_path + ".wav", False)
-    sound_object = pg.mixer.Sound(file=sad_export_path + ".wav")
-    return sound_object
+    sadl = SADLpy.SADL.SADL(sad_export_path, 0, True)
+    sadl.read_file()
+    return sadl
 
 
 def clear_extracted():

@@ -8,12 +8,14 @@ from event.EventCharacter import EventCharacter
 from utils.rom.rom_extract import load_animation
 from typing import Optional
 import pygame as pg
+import utils.SADLStreamPlayer
+from utils.rom.rom_extract import load_effect
 
 
 class EventDialogue(Engine.UI.UIElement.UIElement, Engine.Sprite.Sprite):
     NUMBER_OF_LINES = 5
 
-    def __init__(self, groups):
+    def __init__(self, groups, voice_player: utils.SADLStreamPlayer.SoundPlayer):
         Engine.UI.UIElement.UIElement.__init__(self)
         Engine.Sprite.Sprite.__init__(self, groups)
         self.gm = Engine.GameManager.GameManager()
@@ -32,6 +34,7 @@ class EventDialogue(Engine.UI.UIElement.UIElement, Engine.Sprite.Sprite):
         self.inp = Engine.Input.Input()
 
         self.current_line = 0
+        self.current_page = 0
         self.text_left_to_do = ""
         self.current_text = ""
         self.paused = False
@@ -40,6 +43,9 @@ class EventDialogue(Engine.UI.UIElement.UIElement, Engine.Sprite.Sprite):
         self.time_to_progress = .02
 
         self.character_talking: Optional[EventCharacter] = None
+
+        self.voice_player = voice_player
+        self.voice_line = -1
 
     def set_talking(self):
         if self.character_talking is None:
@@ -50,6 +56,11 @@ class EventDialogue(Engine.UI.UIElement.UIElement, Engine.Sprite.Sprite):
             if self.character_talking.current_tag["name"] != "*" + current_tag:
                 self.character_talking.set_tag("*" + current_tag + " ")
             self.character_talking.update_()
+        self.voice_player.stop()
+        if self.voice_line != -1:
+            print(f"data_lt2/stream/event/?/{str(self.voice_line).zfill(3)}_{self.current_page}.SAD")
+            sfx = load_effect(f"data_lt2/stream/event/?/{str(self.voice_line).zfill(3)}_{self.current_page}.SAD")
+            self.voice_player.start_sound(sfx)
 
     def set_not_talking(self):
         if self.character_talking is None:
@@ -77,6 +88,7 @@ class EventDialogue(Engine.UI.UIElement.UIElement, Engine.Sprite.Sprite):
 
     def _check_interacting(self):
         if self.finished and not self.paused:
+            self.voice_player.stop()
             self.interacting = False
             return
         self.interacting = True
@@ -100,16 +112,18 @@ class EventDialogue(Engine.UI.UIElement.UIElement, Engine.Sprite.Sprite):
             self.progress_text()
 
     def progress_text(self):
+        # TODO: commands starting with & (event 10060)
         if self.text_left_to_do.startswith("@B"):
             self.current_line += 1
             self.current_text = ""
             self.text_left_to_do = self.text_left_to_do[2:]
         if self.text_left_to_do.startswith("@p"):
+            self.current_page += 1
             self.pause()
             self.text_left_to_do = self.text_left_to_do[2:]
             return
         if self.text_left_to_do.startswith("@c"):
-            self.reset(False)
+            self.reset_texts()
             self.text_left_to_do = self.text_left_to_do[2:]
             return
         self.current_text += self.text_left_to_do[:1]
@@ -123,13 +137,16 @@ class EventDialogue(Engine.UI.UIElement.UIElement, Engine.Sprite.Sprite):
         while not self.paused and not self.finished:
             self.progress_text()
 
-    def reset(self, reset_pause=True):
+    def reset_texts(self):
         self.current_line = 0
         self.current_text = ""
         for inner_txt in self.inner_text:
             inner_txt.set_text("")
-        if reset_pause:
-            self.paused = False
+
+    def reset_all(self):
+        self.current_page = 0
+        self.paused = False
+        self.reset_texts()
 
     def init_char_name(self):
         load_animation(f"data_lt2/ani/eventchr/en/chr{self.character_talking.char_id}_n.arc", self.char_name)
