@@ -6,7 +6,7 @@ import LaytonLib.filesystem as fs
 
 
 class EventData:
-    def __init__(self, rom: ndspy.rom.NintendoDSRom = None):
+    def __init__(self, rom: ndspy.rom.NintendoDSRom = None, lang="en"):
         self.rom = rom
         self.event_id = 0
 
@@ -19,6 +19,7 @@ class EventData:
         self.characters_pos = []
         self.characters_shown = []
         self.characters_anim_index = []
+        self.lang = lang
 
     def set_event_id(self, new_id):
         self.event_id = new_id
@@ -48,7 +49,6 @@ class EventData:
         self.load_texts()
 
     def load(self, data: bytes):
-        print(data)
         reader = bin.BinaryReader(data=data)
         self.map_bottom_id = reader.readU16()
         self.map_top_id = reader.readU16()
@@ -78,7 +78,7 @@ class EventData:
 
     def load_texts(self):
         prefix, postfix, complete = self.resolve_event_id()
-        event_texts_id = self.rom.filenames.idOf(f"data_lt2/event/en/ev_t{complete}.plz")
+        event_texts_id = self.rom.filenames.idOf(f"data_lt2/event/?/ev_t{complete}.plz".replace("?", self.lang))
         self.event_texts = fs.PlzFile(self.rom, event_texts_id)
 
     def get_text(self, text_num):

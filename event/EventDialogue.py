@@ -34,7 +34,7 @@ class EventDialogue(Engine.UI.UIElement.UIElement, Engine.Sprite.Sprite):
         self.inp = Engine.Input.Input()
 
         self.current_line = 0
-        self.current_page = 0
+        self.current_pause = 0
         self.text_left_to_do = ""
         self.current_text = ""
         self.paused = False
@@ -48,19 +48,23 @@ class EventDialogue(Engine.UI.UIElement.UIElement, Engine.Sprite.Sprite):
         self.voice_line = -1
 
     def set_talking(self):
+        # If there is a voice line play it (first we stop it)
+        self.voice_player.stop()
+        if self.voice_line != -1:
+            sfx = load_effect(f"data_lt2/stream/event/?/{str(self.voice_line).zfill(3)}_{self.current_pause}.SAD")
+            self.voice_player.start_sound(sfx)
+
         if self.character_talking is None:
             return
+
+        # * + anim name is talking animation
         current_tag = self.character_talking.current_tag["name"]
         if not current_tag.startswith("*"):
             self.character_talking.set_tag("*" + current_tag)
             if self.character_talking.current_tag["name"] != "*" + current_tag:
                 self.character_talking.set_tag("*" + current_tag + " ")
+            # Update character_talking
             self.character_talking.update_()
-        self.voice_player.stop()
-        if self.voice_line != -1:
-            print(f"data_lt2/stream/event/?/{str(self.voice_line).zfill(3)}_{self.current_page}.SAD")
-            sfx = load_effect(f"data_lt2/stream/event/?/{str(self.voice_line).zfill(3)}_{self.current_page}.SAD")
-            self.voice_player.start_sound(sfx)
 
     def set_not_talking(self):
         if self.character_talking is None:
@@ -73,6 +77,7 @@ class EventDialogue(Engine.UI.UIElement.UIElement, Engine.Sprite.Sprite):
             self.character_talking.update_()
 
     def init_position(self):
+        # Init dialogue positions
         for line in range(self.NUMBER_OF_LINES):
             new_text = Engine.UI.Text.Text([])
             new_text.layer = 120
@@ -86,6 +91,7 @@ class EventDialogue(Engine.UI.UIElement.UIElement, Engine.Sprite.Sprite):
         self.char_name.world_rect.y = self.world_rect.y - self.world_rect.h
         self.char_name.world_rect.x = - 256 // 2
 
+    # Check if we are interacting with the dialogue (UIElement)
     def _check_interacting(self):
         if self.finished and not self.paused:
             self.voice_player.stop()
@@ -93,10 +99,13 @@ class EventDialogue(Engine.UI.UIElement.UIElement, Engine.Sprite.Sprite):
             return
         self.interacting = True
 
+    # Once we start to interact we set talking (UIElement)
     def pre_interact_(self):
         self.set_talking()
 
+    # When we are interacting (UIElement)
     def _interact(self):
+        # Get if the mouse was pressed in the display port of the current camera (bottom camera)
         mouse_pressed = self.inp.get_mouse_down(1) and \
                         self.current_camera.display_port.collidepoint(self.inp.get_screen_mouse_pos())
         if self.paused:
@@ -106,6 +115,8 @@ class EventDialogue(Engine.UI.UIElement.UIElement, Engine.Sprite.Sprite):
         if mouse_pressed:
             self.complete()
             return
+
+        # See if we have to progress the text
         self.current_time_between_progress += self.gm.delta_time
         while self.current_time_between_progress > self.time_to_progress:
             self.current_time_between_progress -= self.time_to_progress
@@ -113,71 +124,80 @@ class EventDialogue(Engine.UI.UIElement.UIElement, Engine.Sprite.Sprite):
 
     def progress_text(self):
         # TODO: commands starting with & (event 10060)
-        if self.text_left_to_do.startswith("@B"):
+        if self.text_left_to_do.startswith("@B"):  # Next line
             self.current_line += 1
             self.current_text = ""
             self.text_left_to_do = self.text_left_to_do[2:]
-        if self.text_left_to_do.startswith("@p"):
-            self.current_page += 1
+            return
+        elif self.text_left_to_do.startswith("@p"):  # Pause
+            self.current_pause += 1
             self.pause()
             self.text_left_to_do = self.text_left_to_do[2:]
             return
-        if self.text_left_to_do.startswith("@c"):
+        elif self.text_left_to_do.startswith("@c"):  # Next "page
             self.reset_texts()
             self.text_left_to_do = self.text_left_to_do[2:]
             return
+
+        # Move one character from self.text_left_to_do to current_text
         self.current_text += self.text_left_to_do[:1]
         self.text_left_to_do = self.text_left_to_do[1:]
+
+        # Update current text object
         self.inner_text[self.current_line].set_text(self.current_text, color=pg.Color(0, 0, 0), bg_color=[0, 255, 0],
                                                     mask_color=[0, 255, 0])
+
+        # If we have finished we pause
         if self.finished:
             self.pause()
 
+    # Complete until we pause
     def complete(self):
         while not self.paused and not self.finished:
             self.progress_text()
 
+    # Reset the texts
     def reset_texts(self):
         self.current_line = 0
         self.current_text = ""
         for inner_txt in self.inner_text:
             inner_txt.set_text("")
 
+    # Reset all (texts, paused, and current_pause)
     def reset_all(self):
-        self.current_page = 0
+        self.current_pause = 0
         self.paused = False
         self.reset_texts()
 
+    # Init character name sprite
     def init_char_name(self):
-        load_animation(f"data_lt2/ani/eventchr/en/chr{self.character_talking.char_id}_n.arc", self.char_name)
+        load_animation(f"data_lt2/ani/eventchr/?/chr{self.character_talking.char_id}_n.arc", self.char_name)
 
+    # Pause the text
     def pause(self):
         self.paused = True
         self.set_not_talking()
 
+    # Unpause the text
     def unpause(self):
         self.paused = False
         if not self.finished:
             self.set_talking()
 
+    # The game uses some substitutions to represent certain characters
+    # For example: <''> corresponds to a "
+    # This function 'fixes' this substitutions
     def replace_substitutions(self):
-        subs_dict = {"''": "\""}
-        parsed = ""
-        current_index = 0
-        while current_index < len(self.text_left_to_do):
-            if self.text_left_to_do[current_index] == "<":
-                token = ""
-                current_index += 1
-                while self.text_left_to_do[current_index] != ">":
-                    token += self.text_left_to_do[current_index]
-                    current_index += 1
-                if token not in subs_dict.keys():
-                    Debug.log_warning(f"Token {token} not in substitution dict ({self.text_left_to_do})", self)
-                else:
-                    parsed += subs_dict[token]
-            else:
-                parsed += self.text_left_to_do[current_index]
-            current_index += 1
+        subs_dict = {"<''>": "\"",
+                     "<^?>": "¿",
+                     "<'e>": "é",
+                     "<'a>": "á",
+                     "<'o>": "ó",
+                     "<'i>": "í",
+                     "<'u>": "ú",
+                     "<^!>": "¡"}
+        for key, sub in subs_dict.items():
+            self.text_left_to_do = self.text_left_to_do.replace(key, sub)
 
     @property
     def finished(self):

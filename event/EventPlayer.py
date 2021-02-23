@@ -11,10 +11,8 @@ import LaytonLib.gds
 import pygame as pg
 from event.EventCharacter import EventCharacter
 from event.EventDialogue import EventDialogue
-from utils.rom.rom_extract import load_animation, load_bg, clear_extracted, ORIGINAL_FPS, load_effect
+from utils.rom.rom_extract import load_animation, load_bg, ORIGINAL_FPS, load_effect, LANG
 import utils.SADLStreamPlayer
-
-
 
 
 class EventPlayer(TwoScreenRenderer.TwoScreenRenderer):
@@ -24,7 +22,7 @@ class EventPlayer(TwoScreenRenderer.TwoScreenRenderer):
 
         self.inp = Engine.Input.Input()
 
-        self.event_data = evdat.EventData(rom=RomSingleton.RomSingleton().rom)
+        self.event_data = evdat.EventData(rom=RomSingleton.RomSingleton().rom, lang=LANG)
         self.event_data.set_event_id(self.event_id)
         self.event_data.load_from_rom()
 
@@ -95,6 +93,7 @@ class EventPlayer(TwoScreenRenderer.TwoScreenRenderer):
         self.load(skip_fade_in)
 
     def hide_dialogue(self):
+        # Hides dialogue and resets the voice line
         self.next_voice = -1
         for text in self.dialogue.inner_text:
             text.kill()
@@ -103,6 +102,7 @@ class EventPlayer(TwoScreenRenderer.TwoScreenRenderer):
         self.bottom_screen_camera.draw(self.bottom_screen_group, dirty_all=True)
 
     def show_dialogue(self):
+        # Shows dialogue and adds dialogue objects to bottom screen
         for text in self.dialogue.inner_text:
             text.add(self.bottom_screen_group)
         self.dialogue.char_name.add(self.bottom_screen_group)
@@ -113,6 +113,8 @@ class EventPlayer(TwoScreenRenderer.TwoScreenRenderer):
         dialogue_id = command.params[0]
         dialogue_gds = self.event_data.get_text(dialogue_id)
         Debug.log(f"Dialogue: {dialogue_gds.params[4]}", self)
+
+        # If we are executing the dialogue
         if exec_dialogue:
             self.dialogue.reset_all()
             self.show_dialogue()
@@ -120,16 +122,20 @@ class EventPlayer(TwoScreenRenderer.TwoScreenRenderer):
             self.dialogue.replace_substitutions()
             self.dialogue.voice_line = self.next_voice
         else:
-            self.hide_dialogue()
+            # Reset the voice so that the next dialogue that is executed doesn't play it
+            self.next_voice = -1
 
+        # If there is a character talking
         if dialogue_gds.params[0] != 0:
             self.dialogue.character_talking = self.characters[dialogue_gds.params[0]]
             if exec_dialogue:
                 self.dialogue.init_char_name()
 
             if dialogue_gds.params[1] != "NONE":
+                # Set animation by name
                 self.dialogue.character_talking.set_tag(dialogue_gds.params[1])
 
+            # Update positions and etc
             self.dialogue.character_talking.update_()
         else:
             self.dialogue.character_talking = None
@@ -161,18 +167,18 @@ class EventPlayer(TwoScreenRenderer.TwoScreenRenderer):
                 load_animation(f"data_lt2/ani/sub/chr{character}_face.arc", new_character.character_mouth)
             except:
                 new_character.character_mouth.kill()
-                new_character.character_mouth = None
+                # new_character.character_mouth = None
 
+            # If the character shouldn't be shown on start
             if self.event_data.characters_shown[char_num] == 0:
                 new_character.hide()
+
+            # Setting slot, animations and update
             new_character.slot = self.event_data.characters_pos[char_num]
             new_character.set_tag_by_num(self.event_data.characters_anim_index[char_num])
             new_character.update_anim_frame()
-
-            new_character.set_tag_by_num(self.event_data.characters_anim_index[char_num])
-            new_character.update_anim_frame()
-
             new_character.update_()
+
             self.characters[character] = new_character
             self.char_order.append(character)
 
@@ -181,28 +187,34 @@ class EventPlayer(TwoScreenRenderer.TwoScreenRenderer):
         if self.inp.quit:
             self.running = False
 
+        # Update character animations
         for character in self.characters.keys():
             character: EventCharacter = self.characters[character]
             character.update_animation(self.gm.delta_time)
             if character.character_mouth is not None:
                 character.character_mouth.update_animation(self.gm.delta_time)
 
+        # Update faders and shakers
         self.top_fader.update_()
         self.bottom_fader.update_()
+        self.top_bg.update_()
         self.bottom_bg.update_()
 
+        # Update sounds
         self.sound_player.update_()
         self.voice_player.update_()
 
+        # Update wait
         if self.wait_timer > 0:
             self.wait_timer -= self.gm.delta_time
             if self.wait_timer <= 0:
                 self.run_gds_command()
 
+        # Update UI Elements
         Engine.UI.UIManager.UIManager.update([self.dialogue])
 
     def run_gds_command(self, run_until_command=-1):
-        auto_progress = run_until_command == -1
+        auto_progress = run_until_command == -1  # Should we play commands
         if not auto_progress:
             Debug.log_debug(f"Event running until command {run_until_command}", self)
             self.top_fader.max_fade = 180
@@ -212,48 +224,49 @@ class EventPlayer(TwoScreenRenderer.TwoScreenRenderer):
             self.bottom_fader.max_fade = 255
 
         while True:
-            should_return = False
+            should_return = False  # Should we return and stop playing commands?
 
             if self.current_gds_command >= len(self.event_data.event_gds.commands):
                 break
             next_command: LaytonLib.gds.GDSCommand = self.event_data.event_gds.commands[self.current_gds_command]
             self.current_gds_command += 1
 
+            # Have we completed run_until_command?
             run_until_command_completed = (self.current_gds_command > run_until_command)
 
-            if next_command.command == 0x2:
+            if next_command.command == 0x2:  # Both screens fade in
                 Debug.log("Fading in both screens", self)
                 self.top_fader.fade_in(auto_progress, not run_until_command_completed)
                 self.bottom_fader.fade_in(False, not run_until_command_completed)
                 should_return = True
-            elif next_command.command == 0x3:
+            elif next_command.command == 0x3:  # Both screens fade out
                 Debug.log("Fading out both screens", self)
                 self.top_fader.fade_out(auto_progress, not run_until_command_completed)
                 self.bottom_fader.fade_out(False, not run_until_command_completed)
                 should_return = True
-            elif next_command.command == 0x4:
+            elif next_command.command == 0x4:  # Dialogue
                 Debug.log(f"Starting dialogue {next_command.params[0]}", self)
                 self.start_dialogue(next_command, exec_dialogue=run_until_command_completed)
                 should_return = True
-            elif next_command.command == 0x21:
+            elif next_command.command == 0x21:  # Set BG Bottom
                 path = ".".join(next_command.params[0].split(".")[:-1]) + ".arc"  # Change extension
                 Debug.log(f"Loading BG on bottom {path}", self)
                 load_bg("data_lt2/bg/" + path, self.bottom_bg)
                 self.back_translucent.image.set_alpha(0)
                 self.back_translucent.dirty = 1
-            elif next_command.command == 0x22:
+            elif next_command.command == 0x22:  # Set BG Top
                 path = ".".join(next_command.params[0].split(".")[:-1]) + ".arc"  # Change extension
                 Debug.log(f"Loading BG on top {path}", self)
                 load_bg("data_lt2/bg/" + path, self.top_bg)
-            elif next_command.command == 0x2a:
+            elif next_command.command == 0x2a:  # Show character
                 Debug.log(f"Showing character {next_command.params[0]}", self)
                 char_id = self.char_order[next_command.params[0]]
                 self.characters[char_id].show()
-            elif next_command.command == 0x2b:
+            elif next_command.command == 0x2b:  # Hide character
                 Debug.log(f"Hiding character {next_command.params[0]}", self)
                 char_id = self.char_order[next_command.params[0]]
                 self.characters[char_id].hide()
-            elif next_command.command == 0x2C:
+            elif next_command.command == 0x2C:  # Set character visibility
                 Debug.log(f"Setting character {next_command.params[0]} visibility "
                           f"to {next_command.params[1] > 0}", self)
                 char_id = self.char_order[next_command.params[0]]
@@ -261,62 +274,66 @@ class EventPlayer(TwoScreenRenderer.TwoScreenRenderer):
                     self.characters[char_id].show()
                 else:
                     self.characters[char_id].hide()
-            elif next_command.command == 0x30:
+            elif next_command.command == 0x30:  # Set character slot
                 Debug.log(f"Setting character {next_command.params[0]} slot to {next_command.params[1]}", self)
                 char_id = self.char_order[next_command.params[0]]
                 char: EventCharacter = self.characters[char_id]
                 char.slot = next_command.params[1]
                 char.update_()
-            elif next_command.command == 0x32:
+            elif next_command.command == 0x32:  # Bottom fade in
                 Debug.log(f"Fading bottom in", self)
                 self.bottom_fader.fade_in(auto_progress, not run_until_command_completed)
                 should_return = True
-            elif next_command.command == 0x33:
+            elif next_command.command == 0x33:  # Bottom fade out
                 Debug.log("Fading bottom out", self)
                 self.bottom_fader.fade_out(auto_progress, not run_until_command_completed)
                 should_return = True
-            elif next_command.command == 0x31:
+            elif next_command.command == 0x31:  # Wait frames
                 if run_until_command_completed:
                     self.wait(next_command.params[0])
                     Debug.log(f"Waiting {self.wait_timer}", self)
                 should_return = True
-            elif next_command.command == 0x37:
+            elif next_command.command == 0x37:  # Set BG Opacity
                 Debug.log(f"Setting BG opacity to {next_command.params[3]}", self)
                 self.back_translucent.image.set_alpha(next_command.params[3])
                 self.back_translucent.dirty = 1
-            elif next_command.command == 0x3f:
+            elif next_command.command == 0x3f:  # Set character animation
                 Debug.log(f"Setting character {next_command.params[0]} animation to {next_command.params[1]}", self)
                 self.characters[next_command.params[0]].set_tag(next_command.params[1])
                 self.characters[next_command.params[0]].update_()
-            elif next_command.command == 0x5c:
+            elif next_command.command == 0x5c:  # Set voice line for next command
                 Debug.log(f"Playing voice line {next_command.params[0]}", self)
                 self.next_voice = next_command.params[0]
-            elif next_command.command == 0x5d:
+            elif next_command.command == 0x5d:  # Play SFX
                 Debug.log(f"Playing SAD SFX {next_command.params[0]}", self)
                 if run_until_command_completed:
                     sfx_path = f"data_lt2/stream/ST_{str(next_command.params[0]).zfill(3)}.SAD"
                     sfx = load_effect(sfx_path)
                     self.sound_player.start_sound(sfx)
-            elif next_command.command == 0x5e:
+            elif next_command.command == 0x5e:  # Play SFX Sequenced (NOT IMPLEMENTED)
                 Debug.log(f"SFX Sequenced {next_command.params}", self)
-            elif next_command.command == 0x6a:
+            elif next_command.command == 0x6a:  # Shake bottom screen
                 Debug.log(f"Shaking screen bottom", self)
                 if run_until_command_completed:
                     self.bottom_bg.shake()
-            elif next_command.command == 0x87:
+            elif next_command.command == 0x87:  # Fade out top timed
                 Debug.log(f"Fading out top in {next_command.params[0]} frames", self)
                 self.top_fader.fade_out(run_until_command == -1, not run_until_command_completed)
                 self.top_fader.current_time = next_command.params[0] / ORIGINAL_FPS
                 should_return = True
-            elif next_command.command == 0x88:
+            elif next_command.command == 0x88:  # Fade in top timed
                 Debug.log(f"Fading in top in {next_command.params[0]} frames", self)
                 self.top_fader.fade_in(run_until_command == -1, not run_until_command_completed)
                 self.top_fader.current_time = next_command.params[0] / ORIGINAL_FPS
                 should_return = True
             else:
                 Debug.log(f"Unknown dialogue {next_command}", self)
+
+            # If we have completed run_until_command and we are auto_progressing to next command
             if run_until_command_completed and not auto_progress:
                 return
+
+            # If we should return and we are auto_progressing to next command
             if should_return and auto_progress:
                 return
         Debug.log("Event execution finished", self)

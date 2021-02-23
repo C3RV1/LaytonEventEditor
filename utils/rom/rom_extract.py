@@ -11,11 +11,12 @@ import SADLpy.SADL
 
 EXPORT_PATH = "data_extracted"
 ORIGINAL_FPS = 60
+LANG = "en"
 
 
 def load_animation(path: str, sprite: Engine.Sprite.Sprite):
     rom = RomSingleton.RomSingleton().rom
-    path = path.replace("?", "en")
+    path = path.replace("?", LANG)
     export_path = EXPORT_PATH + "/" + path
     if not os.path.isfile(export_path + ".png"):
         os.makedirs(os.path.dirname(export_path), exist_ok=True)
@@ -71,7 +72,7 @@ def load_animation(path: str, sprite: Engine.Sprite.Sprite):
 
 def load_bg(path: str, sprite: Engine.Sprite.Sprite):
     rom = RomSingleton.RomSingleton().rom
-    path = path.replace("?", "en")
+    path = path.replace("?", LANG)
     export_path = EXPORT_PATH + "/" + path + ".png"
     if not os.path.isfile(export_path):
         os.makedirs(os.path.dirname(export_path), exist_ok=True)
@@ -83,14 +84,15 @@ def load_bg(path: str, sprite: Engine.Sprite.Sprite):
 
 def load_effect(path: str) -> SADLpy.SADL.SADL:
     rom = RomSingleton.RomSingleton().rom
-    path = path.replace("?", "en")
+    path = path.replace("?", LANG)
     sad_export_path = EXPORT_PATH + "/" + path
+
     if not os.path.isfile(sad_export_path):
         os.makedirs(os.path.dirname(sad_export_path), exist_ok=True)
-        print(path)
         sound_data = rom.files[rom.filenames.idOf(path)]
         with open(sad_export_path, "wb") as sad_export_file:
             sad_export_file.write(sound_data)
+
     sadl = SADLpy.SADL.SADL(sad_export_path, 0, True)
     sadl.read_file()
     return sadl

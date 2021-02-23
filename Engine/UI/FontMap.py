@@ -30,9 +30,11 @@ class FontMap:
 
     def create_char_dict(self, font_data):
         for char_code in font_data["CharMap"]["CharInfo"]:
-            if char_code["-Char"] in self.char_dict.keys():
+            print(char_code["-Code"])
+            char_id = int(char_code["-Code"], 16)
+            if char_id in self.char_dict.keys():
                 continue
-            self.char_dict[char_code["-Char"]] = {
+            self.char_dict[char_id] = {
                 "index": int(char_code["-Index"]),
                 "width": int(char_code["-Width"])
             }
@@ -46,11 +48,13 @@ class FontMap:
         return width, self.tile_height
 
     def render(self, text, bg_color=pg.Color(255, 255, 255)):
+        text = list(text.encode("cp1252"))
         return_surface = pg.Surface(self.get_str_size(text))
         return_surface.fill(bg_color)
         current_x = 0
         for letter in text:
             if letter not in self.char_dict.keys():
+                print(f"Letter {letter} not found")
                 continue
             index_x = self.char_dict[letter]["index"] % 16
             index_y = self.char_dict[letter]["index"] // 16
