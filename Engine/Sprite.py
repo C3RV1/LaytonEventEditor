@@ -33,6 +33,7 @@ class Sprite(pg.sprite.DirtySprite):
         self.source_rect_pre: pg.rect.Rect = None
 
         self.current_camera = None
+        self.cam_updated = False
         self.cam_scale = 1
 
     def load(self, path, convert_alpha=True, from_cache=True):

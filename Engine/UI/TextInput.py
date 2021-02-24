@@ -4,6 +4,7 @@ import Engine.Input
 import pygame as pg
 import Engine.Camera
 import re
+import random
 
 
 class TextInput(Engine.UI.UIElement.UIElement, Engine.UI.Text.Text):
@@ -18,8 +19,12 @@ class TextInput(Engine.UI.UIElement.UIElement, Engine.UI.Text.Text):
 
         self.default_text = default_text
 
+        self.accept_input = True
+
+        self.grab_id = str(random.random())
+
     def update_display_text(self):
-        if self.value == "":
+        if self.value == "" and self.accept_input:
             self.set_text(self.default_text)
         else:
             self.set_text(self.value)
@@ -27,8 +32,8 @@ class TextInput(Engine.UI.UIElement.UIElement, Engine.UI.Text.Text):
         self.world_rect[3] = self.image.get_rect().h
         self.dirty = 1
 
-    def set_font(self, font_path, size):
-        Engine.UI.Text.Text.set_font(self, font_path, size)
+    def set_font(self, font_path, size, is_font_map=False, letter_spacing=1):
+        Engine.UI.Text.Text.set_font(self, font_path, size, is_font_map=is_font_map, letter_spacing=letter_spacing)
         self.update_display_text()
 
     def _check_interacting(self):
@@ -41,9 +46,11 @@ class TextInput(Engine.UI.UIElement.UIElement, Engine.UI.Text.Text):
             if Engine.Input.Input().get_mouse_down(1):
                 if not self.rect.collidepoint(mouse_pos[0], mouse_pos[1]):
                     self.interacting = False
+        if not self.accept_input:
+            self.interacting = False
 
     def _interact(self):
-        Engine.Input.Input().grab_key_input()
+        Engine.Input.Input().grab_key_input(self.grab_id)
         for event in Engine.Input.Input().last_events:
             if event.type == pg.KEYDOWN:
                 if event.key == pg.K_RETURN:

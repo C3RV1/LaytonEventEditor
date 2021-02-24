@@ -15,8 +15,10 @@ class SoundPlayer:
         if self.loading:
             self.add_samples()
 
-    def add_samples(self):
+    def add_samples(self, first_init=False):
         sample_steps = 15
+        if first_init:
+            sample_steps *= 2  # Load twice on start up to make sure we have enough for playback
         new_samples = np.array(self.sadl.decode_procyon(sample_steps))
         if new_samples.shape[0] == 0:
             self.loading = False
@@ -34,7 +36,7 @@ class SoundPlayer:
         self.sound_buffer = pg.sndarray.samples(self.sound_obj)
         self.loading = True
         self.buffer_offset = 0
-        self.add_samples()
+        self.add_samples(first_init=True)
         self.sound_obj.play(loops=loops)
 
     def stop(self):

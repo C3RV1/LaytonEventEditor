@@ -16,9 +16,11 @@ class Camera:
         for sprite in group.sprites():
             if isinstance(sprite, Engine.Sprite.Sprite):
                 sprite: Engine.Sprite.Sprite
+                sprite.cam_updated = False
                 if sprite.cam_scale != self.scale and self.scale != 1 and sprite.world_rect.w != 0:
                     sprite.cam_scale = self.scale
                     sprite.scale_by_factor([1, 1])
+                    sprite.cam_updated = True
                 if sprite.current_camera is not self:
                     sprite.current_camera = self
                 if dirty_all:
@@ -54,6 +56,7 @@ class Camera:
         sprite.rect.x = int(sprite.rect.x)
         sprite.rect.y = int(sprite.rect.y)
         if sprite.rect != prev_rect:
+            sprite.cam_updated = True
             if sprite.dirty < 1:
                 sprite.dirty = 1
 

@@ -2,7 +2,6 @@ import Engine.GameManager
 import Engine.Input
 from utils.rom.FilesystemViewer import FilesystemViewer
 from utils.NodeEditor import NodeEditor
-from utils.GDSEditor import GDSEditor
 from utils.rom.rom_extract import clear_extracted
 from utils.rom import RomSingleton
 from event.EventPlayer import EventPlayer
@@ -17,7 +16,7 @@ class EventEditor:
 
         screen_size = (1920, 1080)
 
-        self.gm = Engine.GameManager.GameManager(screen_size=screen_size, full_screen=False, log_fps=True,
+        self.gm = Engine.GameManager.GameManager(screen_size=screen_size, full_screen=False, log_fps=False,
                                                  name="Event Editor")
         self.inp = Engine.Input.Input()
 
@@ -107,7 +106,7 @@ def test_event(event_id):
 
 
 if __name__ == '__main__':
-    rom = RomSingleton.RomSingleton("test_rom.nds")
-    test_event(10030)
-    # test_event(14230)
+    rom = RomSingleton.RomSingleton("rom_spanish.nds")
+    # test_event(10030)
+    test_event(14230)
     clear_extracted()
