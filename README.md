@@ -1,4 +1,7 @@
 # Layton Event Editor
+
+THIS EDITOR IS NO LONGER MANTAINED NOR WORK IS BEING MADE. Instead, visit https://github.com/thatrandomstranger/LaytonEditor.
+
 This is an editor made ONLY to edit events of the 2nd Professor Layton.
 
 ### Setup
